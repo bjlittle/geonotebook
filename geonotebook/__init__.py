@@ -1,6 +1,9 @@
 import os
 import sys
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
+from notebook.utils import url_path_join
+
+from . import tile_server
 
 def _jupyter_server_extension_paths():
     return [{
@@ -44,6 +47,13 @@ def get_notebook_jinja2_loader(nbapp):
 def load_jupyter_server_extension(nbapp):
     nbapp.log.info("geonotebook module enabled!")
     nbapp.web_app.settings['jinja2_env'].loader = get_notebook_jinja2_loader(nbapp)
+
+    # Register new path and handler for tilestache
+    web_app = nbapp.web_app
+    base_url = web_app.settings['base_url']
+    route_pattern = url_path_join(web_app.settings['base_url'], '/geotiff/.*')
+    web_app.add_handlers(".*$", [(route_pattern, tile_server.TileServerHandler)])
+
 
 ### Note:  How to add custom web handlers
 #     webapp = nbapp.web_app
