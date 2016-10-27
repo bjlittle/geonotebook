@@ -116,6 +116,16 @@ define(
                 // Once protocol negotiation is complete create the geojs map
                 // and add the base OSM layer
                 this.map.init_map();
+
+                this.map.notebook._remote.get_map_state().then(function(state) {
+                    _.each(_.union(state.layers.layers, state.layers.system_layers), function(layer) {
+                        this.map.add_layer(layer.type, layer.name, layer.params);
+                    }, this);
+
+                    if (_.has(state, 'center')) {
+                        this.map.set_center.apply(this.map, state.center);
+                    }
+                }.bind(this));
             } else if(this.protocol_negotiation_complete) {
 
                 // Pass response messages on to remote to be resolved

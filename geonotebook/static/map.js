@@ -52,10 +52,8 @@ define(
         Map.prototype.msg_types = ["get_protocol",
                                    "set_center",
                                    "_debug",
-                                   "add_wms_layer",
+                                   "add_layer",
                                    "replace_wms_layer",
-                                   "add_osm_layer",
-                                   "add_annotation_layer",
                                    "clear_annotations",
                                    "remove_layer"];
 
@@ -116,27 +114,40 @@ define(
 
 
         Map.prototype.add_annotation = function(annotation){
-            annotation.options("style").fillColor = this.next_color();
-            annotation.options("style").fillOpacity = 0.8;
-            annotation.options("style").strokeWidth = 2;
+            if (_.size(arguments) > 1) {
+                // Redraw existing annotation
+                var annotation_type = arguments[0],
+                    args = arguments[1][0],
+                    style = arguments[2],
+                    annotation_layer = this.get_layer('annotation');
 
-            var annotation_meta = {
-                id: annotation.id(),
-                name: annotation.name(),
-                rgb: annotation.options("style").fillColor
-            };
+                if (annotation_type === 'point') {
+                    annotation_layer.addAnnotation(geo.annotation.pointAnnotation({position: args,
+                                                                                   layer: annotation_layer}));
+                }
+            } else {
+                // First time creating annotation
+                annotation.options("style").fillColor = this.next_color();
+                annotation.options("style").fillOpacity = 0.8;
+                annotation.options("style").strokeWidth = 2;
 
-            this.notebook._remote.add_annotation(
-                annotation.type(),
-                annotation.coordinates("EPSG:4326"),
-                annotation_meta
-            ).then(
-                function(result){
-                    annotation.layer().modified();
-                    annotation.draw();
-                }.bind(this),
-                this.rpc_error.bind(this));
+                var annotation_meta = {
+                    id: annotation.id(),
+                    name: annotation.name(),
+                    rgb: annotation.options("style").fillColor
+                };
 
+                this.notebook._remote.add_annotation(
+                    annotation.type(),
+                    annotation.coordinates("EPSG:4326"),
+                    annotation_meta
+                ).then(
+                    function(result){
+                        annotation.layer().modified();
+                        annotation.draw();
+                    }.bind(this),
+                    this.rpc_error.bind(this));
+            }
         };
 
         // Note: point/polygon's fire 'state' when they are added to
@@ -195,6 +206,19 @@ define(
                     annotation_layer.zIndex(max + 1);
                 }
 
+            }
+        };
+
+        Map.prototype.add_layer = function(layer_type, layer_name, params) {
+            if (layer_type === 'annotation') {
+                return this.add_annotation_layer(layer_name, params);
+            } else if (layer_type === 'wms') {
+                return this.add_wms_layer(layer_name, params.vis_url, params);
+            } else if (layer_type === 'osm') {
+                return this.add_osm_layer(layer_name, params.vis_url, params);
+            } else {
+                console.error('Attempting to add layer of type ' + layer_type);
+                return false;
             }
         };
 
